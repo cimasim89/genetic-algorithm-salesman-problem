@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
 
-VERSION = '0.0.1.2'
+VERSION = '0.0.1.3'
 
 
 def flatten(l):
@@ -44,7 +44,7 @@ def get_first_generations(size, length):
 
 
 def crossover_func_pm(gene1, gene2, length):
-    cut_one = random.randint(1, length / 2)
+    cut_one = random.randint(1, length // 2)
     cut_two = random.randint(cut_one + 1, length - 1)
     # cut_one, cut_two = [(cut_one, cut_two) if cut_one < cut_two else cut_two, cut_one]
     # print(cut_one, cut_two)
@@ -199,7 +199,7 @@ def salesman(generations, init_size, selection_size, mutation_rate, input_file, 
     print('Average execution score {}'.format(average))
 
     plt.plot(test_results, '-bo')
-    plt.hlines(average, xmin=0, xmax=int(test_repetitions), colors='#E8DD22', linestyles='dashed', label='Average')
+    plt.hlines(average, xmin=0, xmax=int(test_repetitions)-1, colors='#E8DD22', linestyles='dashed', label='Average')
     plt.hlines(worst_execution, xmin=0, xmax=int(test_repetitions)-1, colors='tab:red', linestyles='dashed',
                label='Worst')
     plt.hlines(best_execution, xmin=0, xmax=int(test_repetitions)-1, colors='tab:green', linestyles='dashed',
