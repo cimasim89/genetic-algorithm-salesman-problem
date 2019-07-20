@@ -1,10 +1,15 @@
 import click
+import time
 import random
 import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
 
-flatten = lambda l: [item for sublist in l for item in sublist]
+VERSION = '0.0.1.2'
+
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 
 def diff(first, second):
@@ -12,14 +17,14 @@ def diff(first, second):
     return [item for item in first if item not in second]
 
 
-def parseXml(file_path):
+def parse_xml(file_path):
     try:
         root = ET.parse(file_path).getroot()
         name = root.find('name').text
         description = root.find('description').text
-        graphNode = root.find('graph')
+        graph_node = root.find('graph')
         graph = {}
-        for index, vertexNode in enumerate(graphNode, start=0):
+        for index, vertexNode in enumerate(graph_node, start=0):
             vertex = {}
             for edgeNode in vertexNode:
                 attrib = edgeNode.attrib
@@ -27,24 +32,24 @@ def parseXml(file_path):
                 label = int(edgeNode.text)
                 vertex[label] = float(cost)
             graph[index] = vertex
-        vertexNumber = len(graph)
-        return name, description, graph, vertexNumber
+        vertex_number = len(graph)
+        return name, description, graph, vertex_number
 
     except Exception as e:
         print(e)
 
 
-def get_first_generations(size, len):
-    return [random.sample(range((len)), len) for x in range(0, size)]
+def get_first_generations(size, length):
+    return [random.sample(range(length), length) for _ in range(0, size)]
 
 
-def crossover_func_pm(gene1, gene2, len):
-    cut_one = random.randint(1, len / 2)
-    cut_two = random.randint(cut_one, len - 1)
+def crossover_func_pm(gene1, gene2, length):
+    cut_one = random.randint(1, length / 2)
+    cut_two = random.randint(cut_one + 1, length - 1)
     # cut_one, cut_two = [(cut_one, cut_two) if cut_one < cut_two else cut_two, cut_one]
     # print(cut_one, cut_two)
-    off1 = [-1] * len
-    off2 = [-1] * len
+    off1 = [-1] * length
+    off2 = [-1] * length
 
     off1_miss = diff(gene1[cut_one:cut_two], gene2[cut_one:cut_two])
     off2_miss = diff(gene2[cut_one:cut_two], gene1[cut_one:cut_two])
@@ -63,7 +68,7 @@ def crossover_func_pm(gene1, gene2, len):
         else:
             off2[i] = off2_miss.pop()
 
-    for i in range(cut_two, len):
+    for i in range(cut_two, length):
         if not gene1[i] in off1:
             off1[i] = gene1[i]
         else:
@@ -75,12 +80,12 @@ def crossover_func_pm(gene1, gene2, len):
     return off1, off2
 
 
-def get_fitness_func(graph, vertexNuber):
+def get_fitness_func(graph, vertex_nuber):
     def fitness(way):
         try:
-            if max(way) > vertexNuber - 1:
+            if max(way) > vertex_nuber - 1:
                 raise Exception('Way vertex {} are invalid'.format(max(way)))
-            if len(way) < vertexNuber:
+            if len(way) < vertex_nuber:
                 raise Exception('Used way not pass trough all vertex'.format(len(way)))
             cost = 0
             for edge in list(filter(lambda x: len(x) == 2, [way[i:i + 2] for i in range(0, len(way), 1)])):
@@ -143,19 +148,15 @@ def ga(graph, generations, chromosomes_size, selection_size, mutation_rate, vert
             mutated = mutation(aggregated, vertex_number, mutation_rate)
             rest = (len(population) - (len(mutated)))
             population = mutated + remain[:rest]
-            for chromo in population:
-                fit = fitness_func(chromo)
-                print(fit, chromo)
+            for chromosome in population:
+                fit = fitness_func(chromosome)
+                print(fit, chromosome)
                 if fit < best_fit:
-                    best_chromo = chromo
+                    best_chromo = chromosome
         except Exception as e:
             print(e)
             raise
-    return best_fit,best_chromo
-    # cost = fittnes_func([1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 14, 13, 11, 12, 10, 0])
-    # print(cost)
-    # crossover_func_pm([1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 14, 13, 11, 12, 10, 0],
-    #                   [3, 4, 5, 6, 7, 8, 9, 15, 13, 11, 12, 10, 0, 1, 2, 14], vertexNumber)
+    return best_fit, best_chromo
 
 
 @click.command()
@@ -171,26 +172,41 @@ def ga(graph, generations, chromosomes_size, selection_size, mutation_rate, vert
 @click.option('--test-repetitions', prompt='Give execution repetition number',
               help='How may time to repeat execution.')
 def salesman(generations, init_size, selection_size, mutation_rate, input_file, test_repetitions):
-    name, description, graph, vertex_number = parseXml(input_file)
+    start_time = time.time()
+    print('<----------- Starting {} Executions ------------->'.format(test_repetitions))
+    print('<----------- Code Version {} ------------->'.format(VERSION))
+
+    name, description, graph, vertex_number = parse_xml(input_file)
     print('File name: {}'.format(name))
     print('Data descriptions: {}'.format(description))
     print('Number of generations: {}'.format(generations))
 
     test_results = []
-    chromo = []
-    for index in range(1, int(test_repetitions)+1):
-        best_fit, best_chromo = ga(graph, int(generations), int(init_size), int(selection_size), int(mutation_rate), vertex_number)
+    chromosomes = []
+
+    for index in range(1, int(test_repetitions) + 1):
+        best_fit, best_chromo = ga(graph, int(generations), int(init_size), int(selection_size), int(mutation_rate),
+                                   vertex_number)
         test_results.append(best_fit)
-        chromo.append(best_chromo)
-    bestExecution = min(test_results)
-    print('Best execution score {}, path {}'.format(bestExecution, chromo[test_results.index(bestExecution)]))
-    worstExecution = max(test_results)
-    print('Worst execution score {}, path {}'.format(worstExecution, chromo[test_results.index(worstExecution)]))
+        chromosomes.append(best_chromo)
+    print("<-------- Executions time: {} -------->".format((time.time() - start_time)))
+
+    best_execution = min(test_results)
+    print('Best execution score {}, path {}'.format(best_execution, chromosomes[test_results.index(best_execution)]))
+    worst_execution = max(test_results)
+    print('Worst execution score {}, path {}'.format(worst_execution, chromosomes[test_results.index(worst_execution)]))
     average = np.average(test_results)
     print('Average execution score {}'.format(average))
-    plt.plot(test_results)
+
+    plt.plot(test_results, '-bo')
+    plt.hlines(average, xmin=0, xmax=int(test_repetitions), colors='#E8DD22', linestyles='dashed', label='Average')
+    plt.hlines(worst_execution, xmin=0, xmax=int(test_repetitions)-1, colors='tab:red', linestyles='dashed',
+               label='Worst')
+    plt.hlines(best_execution, xmin=0, xmax=int(test_repetitions)-1, colors='tab:green', linestyles='dashed',
+               label='Best')
     plt.ylabel('Results')
     plt.show()
+
 
 if __name__ == '__main__':
     salesman()
