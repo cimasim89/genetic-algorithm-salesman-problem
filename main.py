@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
 
-VERSION = '0.0.1.3'
+VERSION = '0.0.1.4'
 
 
 def flatten(l):
@@ -88,7 +88,9 @@ def get_fitness_func(graph, vertex_nuber):
             if len(way) < vertex_nuber:
                 raise Exception('Used way not pass trough all vertex'.format(len(way)))
             cost = 0
-            for edge in list(filter(lambda x: len(x) == 2, [way[i:i + 2] for i in range(0, len(way), 1)])):
+            edges = list(filter(lambda x: len(x) == 2, [way[i:i + 2] for i in range(0, len(way), 1)]))
+            edges.append([way[-1], way[0]])
+            for edge in edges:
                 vert = graph[edge[0]]
                 edge_cost = vert[edge[1]]
                 cost += edge_cost
@@ -199,10 +201,10 @@ def salesman(generations, init_size, selection_size, mutation_rate, input_file, 
     print('Average execution score {}'.format(average))
 
     plt.plot(test_results, '-bo')
-    plt.hlines(average, xmin=0, xmax=int(test_repetitions)-1, colors='#E8DD22', linestyles='dashed', label='Average')
-    plt.hlines(worst_execution, xmin=0, xmax=int(test_repetitions)-1, colors='tab:red', linestyles='dashed',
+    plt.hlines(average, xmin=0, xmax=int(test_repetitions) - 1, colors='#E8DD22', linestyles='dashed', label='Average')
+    plt.hlines(worst_execution, xmin=0, xmax=int(test_repetitions) - 1, colors='tab:red', linestyles='dashed',
                label='Worst')
-    plt.hlines(best_execution, xmin=0, xmax=int(test_repetitions)-1, colors='tab:green', linestyles='dashed',
+    plt.hlines(best_execution, xmin=0, xmax=int(test_repetitions) - 1, colors='tab:green', linestyles='dashed',
                label='Best')
     plt.ylabel('Results')
     plt.show()
