@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
 
-VERSION = '0.0.1.4'
+VERSION = '0.0.1.5'
 
 
 def flatten(l):
@@ -18,6 +18,10 @@ def diff(first, second):
 
 
 def parse_xml(file_path):
+    """
+    :param file_path: string
+    :return: string, string, dict, integer
+    """
     try:
         root = ET.parse(file_path).getroot()
         name = root.find('name').text
@@ -46,8 +50,6 @@ def get_first_generations(size, length):
 def crossover_func_pm(gene1, gene2, length):
     cut_one = random.randint(1, length // 2)
     cut_two = random.randint(cut_one + 1, length - 1)
-    # cut_one, cut_two = [(cut_one, cut_two) if cut_one < cut_two else cut_two, cut_one]
-    # print(cut_one, cut_two)
     off1 = [-1] * length
     off2 = [-1] * length
 
@@ -80,12 +82,12 @@ def crossover_func_pm(gene1, gene2, length):
     return off1, off2
 
 
-def get_fitness_func(graph, vertex_nuber):
+def get_fitness_func(graph, vertex_number):
     def fitness(way):
         try:
-            if max(way) > vertex_nuber - 1:
+            if max(way) > vertex_number - 1:
                 raise Exception('Way vertex {} are invalid'.format(max(way)))
-            if len(way) < vertex_nuber:
+            if len(way) < vertex_number:
                 raise Exception('Used way not pass trough all vertex'.format(len(way)))
             cost = 0
             edges = list(filter(lambda x: len(x) == 2, [way[i:i + 2] for i in range(0, len(way), 1)]))
@@ -106,9 +108,19 @@ def selection(population, size, fitness):
     return res[:size], res[size:]
 
 
-def crossover(population, crossover_func, chromo_size):
-    return flatten([crossover_func(ch1, ch2, chromo_size) for ch1, ch2 in
-                    list(filter(lambda x: len(x) == 2, [population[i:i + 2] for i in range(0, len(population), 2)]))])
+def generate_random_pairs(population_size, size):
+    pairs = []
+    for p in range(size):
+        tmp = list(range(0, population_size))
+        pairs.append((tmp.pop(random.randrange(len(tmp))),
+                      tmp.pop(random.randrange(len(tmp)))))
+    return pairs
+
+
+def crossover(population, crossover_func, chromo_size, original_population_size):
+    offsprings = flatten([crossover_func(population[ch1], population[ch2], chromo_size)
+                          for ch1, ch2 in generate_random_pairs(len(population), original_population_size)])
+    return offsprings
 
 
 def mutation(population, vertex_number, mutation_rate):
@@ -127,17 +139,10 @@ def mutation(population, vertex_number, mutation_rate):
         print(e)
 
 
-def aggregate(arr1, arr2):
-    if np.array_equal(arr1, arr2):
-        return arr1
-    else:
-        return arr1 + arr2
-
-
-def ga(graph, generations, chromosomes_size, selection_size, mutation_rate, vertex_number):
+def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, vertex_number):
     print(graph)
     fitness_func = get_fitness_func(graph, vertex_number)
-    population = get_first_generations(int(chromosomes_size), vertex_number)
+    population = get_first_generations(int(chromosomes_number), vertex_number)
     best_chromo = population[0]
     best_fit = 0
     for generation in range(0, generations):
@@ -145,11 +150,10 @@ def ga(graph, generations, chromosomes_size, selection_size, mutation_rate, vert
         try:
             best_fit = fitness_func(best_chromo)
             selected, remain = selection(population, selection_size, fitness_func)
-            crossed = crossover(selected, crossover_func_pm, vertex_number)
-            aggregated = aggregate(selected, crossed)
+            crossed = crossover(selected, crossover_func_pm, vertex_number, chromosomes_number)
+            aggregated, rest = selection(selected + crossed, chromosomes_number, fitness_func)
             mutated = mutation(aggregated, vertex_number, mutation_rate)
-            rest = (len(population) - (len(mutated)))
-            population = mutated + remain[:rest]
+            population = mutated
             for chromosome in population:
                 fit = fitness_func(chromosome)
                 print(fit, chromosome)
