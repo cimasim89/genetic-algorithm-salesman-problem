@@ -1,6 +1,6 @@
 ## Genetic Algorithm for salesman problem
 
-####EN
+###EN
 
 The script uses TSPLIB xml data
 
@@ -20,8 +20,8 @@ params:
 
 --test-repetitions=10
 
-####IT
-Lo script estrai i dati dalla struttura xml di TSPLIB
+###IT
+Lo script estrae i dati dalla struttura xml di TSPLIB
 
 https://www.iwr.uni-heidelberg.de/groups/comopt/software/TSPLIB95/XML-TSPLIB/instances/
 
