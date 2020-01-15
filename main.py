@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
 
-VERSION = '0.0.1.5'
+VERSION = '1.0.0.10'
 
 
 def flatten(l):
@@ -19,8 +19,15 @@ def diff(first, second):
 
 def parse_xml(file_path):
     """
-    :param file_path: string
-    :return: string, string, dict, integer
+    La funzione prende come input il file xml che descrive la topologia della rete
+    utilizzando la struttura definita dai file scaricati da TSPLIB e ne estrae
+    nome, descrizione, grafo e il numero delle stazioni che lo compongono
+    :param file_path: string path del file
+    :return:
+        name: string,
+        description: string,
+        graph: dict,
+        vertex_number: int
     """
     try:
         root = ET.parse(file_path).getroot()
@@ -44,10 +51,28 @@ def parse_xml(file_path):
 
 
 def get_first_generations(size, length):
+    """
+    Questa funzione crea la prima generazione random
+    :param size: int
+    :param length: int
+    :return: [[int]]
+    """
     return [random.sample(range(length), length) for _ in range(0, size)]
 
 
 def crossover_func_pm(gene1, gene2, length):
+    """
+    Funzione di crossover
+    Dati due geni selezionati genera due nuovi geni.
+    L' algoritmo sceglie random due indici, uno nella prima meta il secondo nello spazio rimanente
+    questi saranno utilizzati per effetture la combinazione dei due geni genitori.
+    :param gene1: [int] genitore 1
+    :param gene2: [int] genitore 2
+    :param length: integer dimensione
+    :return:
+        figlio1: [int],
+        figlio2: [int]
+    """
     cut_one = random.randint(1, length // 2)
     cut_two = random.randint(cut_one + 1, length - 1)
     off1 = [-1] * length
@@ -60,29 +85,30 @@ def crossover_func_pm(gene1, gene2, length):
         off1[i] = gene2[i]
         off2[i] = gene1[i]
 
-    for i in range(0, cut_one):
-        if not gene1[i] in off1:
-            off1[i] = gene1[i]
-        else:
-            off1[i] = off1_miss.pop()
-        if not gene2[i] in off2:
-            off2[i] = gene2[i]
-        else:
-            off2[i] = off2_miss.pop()
+    def filler(start, end):
+        for k in range(start, end):
+            if not gene1[k] in off1:
+                off1[k] = gene1[k]
+            else:
+                off1[k] = off1_miss.pop()
+            if not gene2[k] in off2:
+                off2[k] = gene2[k]
+            else:
+                off2[k] = off2_miss.pop()
 
-    for i in range(cut_two, length):
-        if not gene1[i] in off1:
-            off1[i] = gene1[i]
-        else:
-            off1[i] = off1_miss.pop()
-        if not gene2[i] in off2:
-            off2[i] = gene2[i]
-        else:
-            off2[i] = off2_miss.pop()
+    filler(0, cut_one)
+    filler(cut_two, length)
     return off1, off2
 
 
 def get_fitness_func(graph, vertex_number):
+    """
+    Questa funzione fornisce la funzione di fitness basata sul grafo corrente
+    :param graph: dict
+    :param vertex_number: string
+    :return: [int] -> integer
+    """
+
     def fitness(way):
         try:
             if max(way) > vertex_number - 1:
@@ -104,11 +130,26 @@ def get_fitness_func(graph, vertex_number):
 
 
 def selection(population, size, fitness):
+    """
+    Funzione di selezione
+    data una [population] di individui una funzione di [fitness] seleziona
+    [size} elementi dove il valore restituito da fitness e' minore
+    :param population:  [[int]]
+    :param size: int
+    :param fitness: [int] -> int
+    :return:
+    """
     res = sorted(population, key=lambda x: fitness(x))
-    return res[:size], res[size:]
+    return res[:size]
 
 
 def generate_random_pairs(population_size, size):
+    """
+    Data la dimensione delle popolazione denera tante coppie quante richieste
+    :param population_size:
+    :param size:
+    :return:
+    """
     pairs = []
     for p in range(size):
         tmp = list(range(0, population_size))
@@ -118,12 +159,26 @@ def generate_random_pairs(population_size, size):
 
 
 def crossover(population, crossover_func, chromo_size, original_population_size):
-    offsprings = flatten([crossover_func(population[ch1], population[ch2], chromo_size)
-                          for ch1, ch2 in generate_random_pairs(len(population), original_population_size)])
-    return offsprings
+    """
+    Esecuzione della [crossover_func] sulla [population] selezionata
+    :param population: [[int]]
+    :param crossover_func: [int],[int],int -> [int],[int}
+    :param chromo_size:
+    :param original_population_size:
+    :return:
+    """
+    return flatten([crossover_func(population[ch1], population[ch2], chromo_size)
+                    for ch1, ch2 in generate_random_pairs(len(population), original_population_size)])
 
 
 def mutation(population, vertex_number, mutation_rate):
+    """
+    Da una popolazione esegue su [mutation_rate] individui random una mutazione
+    :param population: [[int]]
+    :param vertex_number: int
+    :param mutation_rate: int
+    :return:
+    """
     try:
         sel = random.sample(range(len(population)), mutation_rate)
         result = population[:]
@@ -140,6 +195,16 @@ def mutation(population, vertex_number, mutation_rate):
 
 
 def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, vertex_number):
+    """
+    Esecuzione dell'algoritmo generico per il proble del commesso viaggiatore
+    :param graph: dict grafo
+    :param generations: int generazioni
+    :param chromosomes_number: int dimensione della popolazione
+    :param selection_size: int indice di selezione
+    :param mutation_rate: int indice di mutazione
+    :param vertex_number: int numero di stazioni
+    :return:
+    """
     print(graph)
     fitness_func = get_fitness_func(graph, vertex_number)
     population = get_first_generations(int(chromosomes_number), vertex_number)
@@ -149,16 +214,16 @@ def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, ve
         print('Generation {}'.format(generation))
         try:
             best_fit = fitness_func(best_chromo)
-            selected, remain = selection(population, selection_size, fitness_func)
+            selected = selection(population, selection_size, fitness_func)
             crossed = crossover(selected, crossover_func_pm, vertex_number, chromosomes_number)
-            aggregated, rest = selection(selected + crossed, chromosomes_number, fitness_func)
+            aggregated = selection(selected + crossed, chromosomes_number, fitness_func)
             mutated = mutation(aggregated, vertex_number, mutation_rate)
             population = mutated
             for chromosome in population:
                 fit = fitness_func(chromosome)
-                print(fit, chromosome)
                 if fit < best_fit:
                     best_chromo = chromosome
+            print('Best chromo of generation {} '.format(generation), best_fit, best_chromo)
         except Exception as e:
             print(e)
             raise
@@ -178,6 +243,16 @@ def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, ve
 @click.option('--test-repetitions', prompt='Give execution repetition number',
               help='How may time to repeat execution.')
 def salesman(generations, init_size, selection_size, mutation_rate, input_file, test_repetitions):
+    """
+    Test dell applicazione di un algoritmo genetico al problema del comesso viaggiatore
+    :param generations:
+    :param init_size:
+    :param selection_size:
+    :param mutation_rate:
+    :param input_file:
+    :param test_repetitions:
+    :return:
+    """
     start_time = time.time()
     print('<----------- Starting {} Executions ------------->'.format(test_repetitions))
     print('<----------- Code Version {} ------------->'.format(VERSION))
