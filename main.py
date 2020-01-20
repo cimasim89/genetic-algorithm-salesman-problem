@@ -4,8 +4,9 @@ import random
 import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 
-VERSION = '1.0.0.10'
+VERSION = '1.0.1.1'
 
 
 def flatten(l):
@@ -171,6 +172,44 @@ def crossover(population, crossover_func, chromo_size, original_population_size)
                     for ch1, ch2 in generate_random_pairs(len(population), original_population_size)])
 
 
+def get_roluette_wheel_pair(population, fitness_func, size):
+    pairs = []
+    population = [{'fitness': (fitness_func(chromosome)), 'chromosome': chromosome} for chromosome in population]
+    for p in range(size):
+        chromosomes = copy.copy(population)
+        sel1, chromosomes = weighted_random_choice(chromosomes)
+        sel2, chromosomes = weighted_random_choice(chromosomes)
+        pairs.append((sel1, sel2))
+    return pairs
+
+
+def weighted_random_choice(population):
+    max_fit = sum(chromosome.get('fitness') for chromosome in population)
+
+    def mapper(x):
+        x['probability'] = max_fit / x.get('fitness')
+        return x
+
+    chromosomes = list(map(mapper, population))
+    max_probability = sum(chromosome.get('probability') for chromosome in chromosomes)
+    pick = random.uniform(0, max_probability)
+    current = 0
+    rest = []
+    selected = None
+    for chromosome in chromosomes:
+        current += chromosome.get('probability')
+        if current > pick and selected is None:
+            selected = chromosome
+        else:
+            rest.append(chromosome)
+    return selected.get('chromosome'), rest
+
+
+def roulette_crossover(population, fitness_func, crossover_func, chromo_size, original_population_size):
+    return flatten([crossover_func(ch1, ch2, chromo_size)
+                    for ch1, ch2 in get_roluette_wheel_pair(population, fitness_func, original_population_size)])
+
+
 def mutation(population, vertex_number, mutation_rate):
     """
     Da una popolazione esegue su [mutation_rate] individui random una mutazione
@@ -194,13 +233,14 @@ def mutation(population, vertex_number, mutation_rate):
         print(e)
 
 
-def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, vertex_number):
+def ga(graph, generations, chromosomes_number, selection_size, roulette, mutation_rate, vertex_number):
     """
     Esecuzione dell'algoritmo generico per il proble del commesso viaggiatore
     :param graph: dict grafo
     :param generations: int generazioni
     :param chromosomes_number: int dimensione della popolazione
     :param selection_size: int indice di selezione
+    :param roulette: boolean modalita di selezione
     :param mutation_rate: int indice di mutazione
     :param vertex_number: int numero di stazioni
     :return:
@@ -214,10 +254,16 @@ def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, ve
         print('Generation {}'.format(generation))
         try:
             best_fit = fitness_func(best_chromo)
-            selected = selection(population, selection_size, fitness_func)
-            crossed = crossover(selected, crossover_func_pm, vertex_number, chromosomes_number)
-            aggregated = selection(selected + crossed, chromosomes_number, fitness_func)
-            mutated = mutation(aggregated, vertex_number, mutation_rate)
+            crossed = []
+            if not roulette:
+                selected = selection(population, selection_size, fitness_func)
+                crossed = crossover(selected, crossover_func_pm, vertex_number, chromosomes_number)
+                crossed = selection(selected + crossed, chromosomes_number, fitness_func)
+            else:
+                crossed = roulette_crossover(population, fitness_func, crossover_func_pm, vertex_number,
+                                             chromosomes_number)
+                crossed = selection(crossed, chromosomes_number, fitness_func)
+            mutated = mutation(crossed, vertex_number, mutation_rate)
             population = mutated
             for chromosome in population:
                 fit = fitness_func(chromosome)
@@ -236,13 +282,15 @@ def ga(graph, generations, chromosomes_number, selection_size, mutation_rate, ve
               help='Size of starting chromosome group.')
 @click.option('--selection-size', prompt='Give selection size',
               help='The selection size.')
+@click.option('--roulette', prompt='Roulette Wheel',
+              help='Use roulette wheel method for crossover', type=bool)
 @click.option('--mutation-rate', prompt='Give mutation rate',
               help='The mutation rate.')
 @click.option('--input-file', prompt='Give input file',
               help='The data file.')
 @click.option('--test-repetitions', prompt='Give execution repetition number',
               help='How may time to repeat execution.')
-def salesman(generations, init_size, selection_size, mutation_rate, input_file, test_repetitions):
+def salesman(generations, init_size, selection_size, roulette, mutation_rate, input_file, test_repetitions):
     """
     Test dell applicazione di un algoritmo genetico al problema del comesso viaggiatore
     :param generations:
@@ -266,7 +314,8 @@ def salesman(generations, init_size, selection_size, mutation_rate, input_file, 
     chromosomes = []
 
     for index in range(1, int(test_repetitions) + 1):
-        best_fit, best_chromo = ga(graph, int(generations), int(init_size), int(selection_size), int(mutation_rate),
+        best_fit, best_chromo = ga(graph, int(generations), int(init_size), int(selection_size), roulette,
+                                   int(mutation_rate),
                                    vertex_number)
         test_results.append(best_fit)
         chromosomes.append(best_chromo)
