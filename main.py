@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-VERSION = '1.0.1.1'
+VERSION = '1.0.2.1'
 
 
 def flatten(l):
@@ -109,7 +109,6 @@ def get_fitness_func(graph, vertex_number):
     :param vertex_number: string
     :return: [int] -> integer
     """
-
     def fitness(way):
         try:
             if max(way) > vertex_number - 1:
@@ -163,27 +162,21 @@ def crossover(population, crossover_func, chromo_size, original_population_size)
     """
     Esecuzione della [crossover_func] sulla [population] selezionata
     :param population: [[int]]
-    :param crossover_func: [int],[int],int -> [int],[int}
-    :param chromo_size:
-    :param original_population_size:
+    :param crossover_func: [int],[int],int -> [int],[int]
+    :param chromo_size: int
+    :param original_population_size: int
     :return:
     """
     return flatten([crossover_func(population[ch1], population[ch2], chromo_size)
                     for ch1, ch2 in generate_random_pairs(len(population), original_population_size)])
 
 
-def get_roluette_wheel_pair(population, fitness_func, size):
-    pairs = []
-    population = [{'fitness': (fitness_func(chromosome)), 'chromosome': chromosome} for chromosome in population]
-    for p in range(size):
-        chromosomes = copy.copy(population)
-        sel1, chromosomes = weighted_random_choice(chromosomes)
-        sel2, chromosomes = weighted_random_choice(chromosomes)
-        pairs.append((sel1, sel2))
-    return pairs
-
-
 def weighted_random_choice(population):
+    """
+    Estrae un gene utilizzando il metodo della roulette wheel
+    :param population:
+    :return:
+    """
     max_fit = sum(chromosome.get('fitness') for chromosome in population)
 
     def mapper(x):
@@ -205,7 +198,34 @@ def weighted_random_choice(population):
     return selected.get('chromosome'), rest
 
 
+def get_roluette_wheel_pair(population, fitness_func, size):
+    """
+    genera coppie di geni utilizzando la roulette wheel
+    :param population: [[inte]]
+    :param fitness_func: [inte] -> int
+    :param size: int
+    :return:
+    """
+    pairs = []
+    population = [{'fitness': (fitness_func(chromosome)), 'chromosome': chromosome} for chromosome in population]
+    for p in range(size):
+        chromosomes = copy.copy(population)
+        sel1, chromosomes = weighted_random_choice(chromosomes)
+        sel2, chromosomes = weighted_random_choice(chromosomes)
+        pairs.append((sel1, sel2))
+    return pairs
+
+
 def roulette_crossover(population, fitness_func, crossover_func, chromo_size, original_population_size):
+    """
+    esegue la [crossover_func] utilizzando la strategia della roulette wheel di parametro [fitness_func]
+    :param population: [[int]]
+    :param fitness_func: [int] -> int
+    :param crossover_func: [int],[int],int -> [int],[int]
+    :param chromo_size: int
+    :param original_population_size: int
+    :return: [[int]]
+    """
     return flatten([crossover_func(ch1, ch2, chromo_size)
                     for ch1, ch2 in get_roluette_wheel_pair(population, fitness_func, original_population_size)])
 
@@ -243,7 +263,7 @@ def ga(graph, generations, chromosomes_number, selection_size, roulette, mutatio
     :param roulette: boolean modalita di selezione
     :param mutation_rate: int indice di mutazione
     :param vertex_number: int numero di stazioni
-    :return:
+    :return: [int] best_chromo, int best_fit
     """
     print(graph)
     fitness_func = get_fitness_func(graph, vertex_number)
@@ -283,7 +303,7 @@ def ga(graph, generations, chromosomes_number, selection_size, roulette, mutatio
 @click.option('--selection-size', prompt='Give selection size',
               help='The selection size.')
 @click.option('--roulette', prompt='Roulette Wheel',
-              help='Use roulette wheel method for crossover', type=bool)
+              help='Use roulette wheel method for crossover', type=bool, default=False)
 @click.option('--mutation-rate', prompt='Give mutation rate',
               help='The mutation rate.')
 @click.option('--input-file', prompt='Give input file',
@@ -293,12 +313,13 @@ def ga(graph, generations, chromosomes_number, selection_size, roulette, mutatio
 def salesman(generations, init_size, selection_size, roulette, mutation_rate, input_file, test_repetitions):
     """
     Test dell applicazione di un algoritmo genetico al problema del comesso viaggiatore
-    :param generations:
-    :param init_size:
-    :param selection_size:
-    :param mutation_rate:
-    :param input_file:
-    :param test_repetitions:
+    :param generations: int
+    :param init_size: int
+    :param selection_size: int
+    :param roulette: bool
+    :param mutation_rate: int
+    :param input_file: string
+    :param test_repetitions: int
     :return:
     """
     start_time = time.time()
@@ -309,10 +330,12 @@ def salesman(generations, init_size, selection_size, roulette, mutation_rate, in
     print('File name: {}'.format(name))
     print('Data descriptions: {}'.format(description))
     print('Number of generations: {}'.format(generations))
+    print('roulette wheel method: {}'.format(roulette))
 
     test_results = []
     chromosomes = []
 
+    # [test_repetition] indica il numero di esecuzioni dell'algoritmo che verranno poi visualizzate su un plot
     for index in range(1, int(test_repetitions) + 1):
         best_fit, best_chromo = ga(graph, int(generations), int(init_size), int(selection_size), roulette,
                                    int(mutation_rate),
